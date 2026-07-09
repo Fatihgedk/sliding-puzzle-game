@@ -8,7 +8,7 @@ let sdkReady = false;
 
 async function initSDK() {
     try {
-        if (window.CrazyGames?.SDK) {
+        if (window.CrazyGames?.SDK && window.CrazyGames.SDK.environment !== 'disabled') {
             await window.CrazyGames.SDK.init();
             sdkReady = true;
         }
