@@ -5,16 +5,19 @@
 
 // CrazyGames SDK ile bulut kaydetme (localStorage fallback)
 let sdkReady = false;
+let sdkPromise = null;
 
 async function initSDK() {
-    try {
-        if (window.CrazyGames?.SDK && window.CrazyGames.SDK.environment !== 'disabled') {
+    if (!window.CrazyGames?.SDK || sdkPromise) return;
+    sdkPromise = (async () => {
+        try {
             await window.CrazyGames.SDK.init();
             sdkReady = true;
+        } catch (e) {
+            sdkReady = false;
         }
-    } catch (e) {
-        console.warn("CrazyGames SDK init failed, using localStorage:", e);
-    }
+    })();
+    await sdkPromise;
 }
 
 const safeStorage = {
@@ -832,8 +835,8 @@ function initGame() {
     const volumeSlider = document.getElementById('volume-slider');
     const volumePercent = document.getElementById('volume-percent');
 
-    // Önce SDK'yı başlat (veri yüklenir)
-    initSDK().then(() => {
+    // SDK zaten başlatıldı, promise'ını bekle
+    (sdkPromise || Promise.resolve()).then(() => {
         // SDK hazır, progress'i yükle
         const savedLevel = safeStorage.getItem('slideQuest_unlockedLevel');
         if (savedLevel !== null) {
@@ -1041,6 +1044,9 @@ function initGame() {
         }, { passive: true });
     }
 }
+
+// SDK'yı hemen başlat (DOM'dan bağımsız)
+initSDK();
 
 // Ön yüklemeler (arka planda)
 preloadBgMusic();
