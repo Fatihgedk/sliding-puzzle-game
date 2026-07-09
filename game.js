@@ -3,11 +3,36 @@
    Optimized for YouTube Playables (Self-contained, Offline, Audio)
    ========================================== */
 
+// CrazyGames SDK ile bulut kaydetme (localStorage fallback)
+let sdkReady = false;
+
+async function initSDK() {
+    try {
+        if (window.CrazyGames?.SDK) {
+            await window.CrazyGames.SDK.init();
+            sdkReady = true;
+        }
+    } catch (e) {
+        console.warn("CrazyGames SDK init failed, using localStorage:", e);
+    }
+}
+
 const safeStorage = {
     getItem(key) {
+        try {
+            if (sdkReady) {
+                return window.CrazyGames.SDK.data.getItem(key);
+            }
+        } catch (e) {}
         try { return localStorage.getItem(key); } catch (e) { return null; }
     },
     setItem(key, value) {
+        try {
+            if (sdkReady) {
+                window.CrazyGames.SDK.data.setItem(key, value);
+                return;
+            }
+        } catch (e) {}
         try { localStorage.setItem(key, value); } catch (e) {}
     }
 };
@@ -803,38 +828,32 @@ function quitToMenu() {
 function initGame() {
     generateBackgroundPhoto();
 
-    // Load Progression
-    const savedLevel = safeStorage.getItem('slideQuest_unlockedLevel');
-    if (savedLevel !== null) {
-        const parsed = parseInt(savedLevel, 10);
-        if (!isNaN(parsed) && parsed >= 1 && parsed <= LEVELS.length) {
-            gameState.unlockedLevel = parsed;
-        } else {
-            gameState.unlockedLevel = 1;
-            safeStorage.setItem('slideQuest_unlockedLevel', 1);
-        }
-    } else {
-        gameState.unlockedLevel = 1;
-    }
-
-    // Load Sound Settings
-    const savedSound = safeStorage.getItem('slideQuest_soundEnabled');
-    if (savedSound !== null) { gameState.soundEnabled = savedSound === 'true'; }
-
-    const savedVolume = safeStorage.getItem('slideQuest_soundVolume');
-    if (savedVolume !== null) {
-        const parsedVolume = parseFloat(savedVolume);
-        if (!isNaN(parsedVolume) && parsedVolume >= 0 && parsedVolume <= 1) { gameState.soundVolume = parsedVolume; }
-    }
-
+    // Volume slider refs
     const volumeSlider = document.getElementById('volume-slider');
     const volumePercent = document.getElementById('volume-percent');
-    if (volumeSlider) { volumeSlider.value = gameState.soundVolume; }
-    if (volumePercent) { volumePercent.innerText = `${Math.round(gameState.soundVolume * 100)}%`; }
 
-    if (gameState.soundEnabled) {
-        // Don't try to play here, it will be started on first user click
-    }
+    // Önce SDK'yı başlat (veri yüklenir)
+    initSDK().then(() => {
+        // SDK hazır, progress'i yükle
+        const savedLevel = safeStorage.getItem('slideQuest_unlockedLevel');
+        if (savedLevel !== null) {
+            const parsed = parseInt(savedLevel, 10);
+            if (!isNaN(parsed) && parsed >= 1 && parsed <= LEVELS.length) {
+                gameState.unlockedLevel = parsed;
+            }
+        }
+        const savedSound = safeStorage.getItem('slideQuest_soundEnabled');
+        if (savedSound !== null) { gameState.soundEnabled = savedSound === 'true'; }
+        const savedVolume = safeStorage.getItem('slideQuest_soundVolume');
+        if (savedVolume !== null) {
+            const parsedVolume = parseFloat(savedVolume);
+            if (!isNaN(parsedVolume) && parsedVolume >= 0 && parsedVolume <= 1) { gameState.soundVolume = parsedVolume; }
+        }
+        renderLevelsMenu();
+        updateSoundButtonsDisplay();
+        if (volumeSlider) volumeSlider.value = gameState.soundVolume;
+        if (volumePercent) volumePercent.innerText = `${Math.round(gameState.soundVolume * 100)}%`;
+    });
 
     // Menu Buttons
     const playBtn = document.getElementById('play-btn');
