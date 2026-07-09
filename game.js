@@ -12,7 +12,17 @@ async function initSDK() {
     sdkPromise = (async () => {
         try {
             await window.CrazyGames.SDK.init();
-            sdkReady = true;
+            // Data module'u test et (QA algılaması için gerekli)
+            try {
+                window.CrazyGames.SDK.data.setItem('__sdk_test', '1');
+                window.CrazyGames.SDK.data.getItem('__sdk_test');
+                window.CrazyGames.SDK.data.removeItem('__sdk_test');
+                window.CrazyGames.SDK.data.clear();
+                sdkReady = true;
+            } catch (e) {
+                // data module disabled, localStorage fallback kullan
+                sdkReady = false;
+            }
         } catch (e) {
             sdkReady = false;
         }
